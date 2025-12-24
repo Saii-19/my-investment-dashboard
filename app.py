@@ -19,202 +19,153 @@ st.title("📊 My Investment Dashboard")
 SHEET_ID = "1IStj3ZAU1yLbCsT6Pa6ioq6UJVdJBDbistzfEnVpK_0"
 
 # --------------------------------------------------
-# LOAD GOOGLE SHEET (TEXT ONLY)
+# LOAD GOOGLE SHEET
 # --------------------------------------------------
 @st.cache_data(ttl=300)
 def load_sheet(sheet_name: str) -> pd.DataFrame:
-    encoded_sheet = urllib.parse.quote(sheet_name)
-    url = (
-        f"https://docs.google.com/spreadsheets/d/{SHEET_ID}"
-        f"/gviz/tq?tqx=out:csv&sheet={encoded_sheet}"
-    )
+    encoded = urllib.parse.quote(sheet_name)
+    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded}"
     return pd.read_csv(url, dtype=str)
 
 # --------------------------------------------------
-# CLEAN DATAFRAME
+# CLEAN DATA
 # --------------------------------------------------
-def clean_df(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.copy()
+def clean_df(df):
     df = df.dropna(axis=1, how="all")
     df = df.loc[:, ~df.columns.str.contains("^Unnamed")]
-    df = df.fillna("")
-    return df
+    return df.fillna("")
 
 # --------------------------------------------------
-# TEXT → NUMBER (ONLY FOR CALCULATION)
+# TEXT → NUMBER (FOR CALC ONLY)
 # --------------------------------------------------
 def to_number(val):
     try:
-        return float(
-            str(val)
-            .replace("₹", "")
-            .replace(",", "")
-            .replace("%", "")
-            .strip()
-        )
+        return float(str(val).replace("₹", "").replace(",", "").replace("%", ""))
     except:
         return 0.0
 
 # --------------------------------------------------
-# SECTION SUMMARY CALCULATION
+# SECTION TOTALS
 # --------------------------------------------------
 def section_summary(df):
-    invested = df.get("Invested Total", pd.Series()).apply(to_number).sum()
-    current = df.get("Current Total", pd.Series()).apply(to_number).sum()
-    pnl = df.get("P&L", pd.Series()).apply(to_number).sum()
-    pct = (pnl / invested * 100) if invested != 0 else 0
+    invested = df.get("Invested Total", []).apply(to_number).sum()
+    current = df.get("Current Total", []).apply(to_number).sum()
+    pnl = df.get("P&L", []).apply(to_number).sum()
+    pct = (pnl / invested * 100) if invested else 0
     return invested, current, pnl, pct
 
 # --------------------------------------------------
-# SECTION SUMMARY UI
+# SECTION DASHBOARD (CUSTOM – NO st.metric)
 # --------------------------------------------------
-def render_section_dashboard(invested, current, pnl, pct):
-    is_profit = pnl >= 0
+def section_card(label, value, color, delta=None):
+    arrow = ""
+    if delta is not None:
+        arrow = "↑" if delta >= 0 else "↓"
+        delta_color = "limegreen" if delta >= 0 else "tomato"
+        delta_html = f"<div style='color:{delta_color};font-size:14px'>{arrow} ₹{abs(delta):,.2f}</div>"
+    else:
+        delta_html = ""
 
-    c1, c2, c3, c4 = st.columns(4)
-
-    c1.metric("💰 Total Invested", f"₹{invested:,.2f}")
-
-    c2.metric(
-        "📈 Current Value",
-        f"₹{current:,.2f}",
-        delta=f"₹{pnl:,.2f}",
-        delta_color="normal" if is_profit else "inverse",
-    )
-
-    c3.metric(
-        "📊 P&L",
-        f"₹{pnl:,.2f}",
-        delta_color="normal" if is_profit else "inverse",
-    )
-
-    c4.metric(
-        "📈 Return %",
-        f"{pct:.2f}%",
-        delta_color="normal" if pct >= 0 else "inverse",
-    )
-
-# --------------------------------------------------
-# ROW COLORING — PROFIT / LOSS
-# --------------------------------------------------
-def highlight_profit_loss(row):
-    pnl = str(row.get("P&L", "")).strip()
-    pct = str(row.get("Percentage", "")).strip()
-
-    if not pnl.startswith("-") and pnl != "":
-        return ["background-color: #1d3a2a"] * len(row)  # green
-    if pnl.startswith("-"):
-        return ["background-color: #3a1d1d"] * len(row)  # red
-
-    return [""] * len(row)
-
-# --------------------------------------------------
-# DASHBOARD (TOP SUMMARY)
-# --------------------------------------------------
-st.header("📌 Portfolio Summary")
-
-dashboard = clean_df(load_sheet("Dashboard")).astype(str)
-
-total_invested = dashboard.iloc[0, 0].strip()
-current_value = dashboard.iloc[0, 1].strip()
-pnl_value = dashboard.iloc[0, 2].strip()
-return_pct = dashboard.iloc[0, 3].strip()
-
-# Overall profit detection (correct logic)
-is_profit = not pnl_value.startswith("-")
-
-def dashboard_metric(label, value, color):
     st.markdown(
         f"""
         <div>
-            <div style="font-size:14px;">{label}</div>
-            <div style="font-size:32px; font-weight:700; color:{color};">
+            <div style="font-size:14px">{label}</div>
+            <div style="font-size:30px;font-weight:700;color:{color}">
                 {value}
             </div>
+            {delta_html}
         </div>
         """,
         unsafe_allow_html=True
     )
 
-c1, c2, c3, c4 = st.columns(4)
+def render_section_dashboard(inv, cur, pnl, pct):
+    profit = pnl >= 0
+    color = "limegreen" if profit else "tomato"
 
-with c1:
-    dashboard_metric("💰 Total Invested", total_invested, "white")
+    c1, c2, c3, c4 = st.columns(4)
 
-with c2:
-    dashboard_metric(
-        "📈 Current Value",
-        current_value,
-        "limegreen" if is_profit else "tomato"
-    )
+    with c1:
+        section_card("💰 Total Invested", f"₹{inv:,.2f}", "white")
 
-with c3:
-    dashboard_metric(
-        "📊 P&L",
-        pnl_value,
-        "limegreen" if not pnl_value.startswith("-") else "tomato"
-    )
+    with c2:
+        section_card("📈 Current Value", f"₹{cur:,.2f}", color, pnl)
 
-with c4:
-    dashboard_metric(
-        "📈 Return %",
-        return_pct,
-        "limegreen" if not return_pct.startswith("-") else "tomato"
-    )
+    with c3:
+        section_card("📊 P&L", f"₹{pnl:,.2f}", color)
+
+    with c4:
+        section_card("📈 Return %", f"{pct:.2f}%", color)
 
 # --------------------------------------------------
-# INVESTED / SOLD SEPARATION
+# ROW COLORING
+# --------------------------------------------------
+def highlight_profit_loss(row):
+    pnl = str(row.get("P&L", ""))
+    if pnl.startswith("-"):
+        return ["background-color:#3a1d1d"] * len(row)
+    if pnl != "":
+        return ["background-color:#1d3a2a"] * len(row)
+    return [""] * len(row)
+
+# --------------------------------------------------
+# TOP DASHBOARD
+# --------------------------------------------------
+st.header("📌 Portfolio Summary")
+
+dashboard = clean_df(load_sheet("Dashboard")).astype(str)
+
+total_inv = dashboard.iloc[0, 0]
+current_val = dashboard.iloc[0, 1]
+pnl_val = dashboard.iloc[0, 2]
+ret_pct = dashboard.iloc[0, 3]
+
+profit = not pnl_val.startswith("-")
+
+def top_card(label, val, color):
+    st.markdown(
+        f"<div><div style='font-size:14px'>{label}</div><div style='font-size:32px;font-weight:700;color:{color}'>{val}</div></div>",
+        unsafe_allow_html=True
+    )
+
+a, b, c, d = st.columns(4)
+
+with a: top_card("💰 Total Invested", total_inv, "white")
+with b: top_card("📈 Current Value", current_val, "limegreen" if profit else "tomato")
+with c: top_card("📊 P&L", pnl_val, "limegreen" if profit else "tomato")
+with d: top_card("📈 Return %", ret_pct, "limegreen" if not ret_pct.startswith("-") else "tomato")
+
+# --------------------------------------------------
+# INVESTED / SOLD
 # --------------------------------------------------
 st.divider()
 
 config = clean_df(load_sheet("Config")).astype(str)
-visible = config[config["Show"].str.upper() == "YES"]
+visible = config[config["Show"] == "YES"]
 
-invested_sheets = visible[visible["Sheet Name"].str.contains("Invested", case=False)]
-sold_sheets = visible[visible["Sheet Name"].str.contains("Sold", case=False)]
+invested = visible[visible["Sheet Name"].str.contains("Invested", case=False)]
+sold = visible[visible["Sheet Name"].str.contains("Sold", case=False)]
 
-main_tabs = st.tabs(["📥 Invested", "📤 Sold"])
+tabs = st.tabs(["📥 Invested", "📤 Sold"])
 
-# ---------------- INVESTED ----------------
-with main_tabs[0]:
-    subtabs = st.tabs(invested_sheets["Display Name"].tolist())
+for group, data in zip(tabs, [invested, sold]):
+    with group:
+        subtabs = st.tabs(data["Display Name"].tolist())
+        for tab, sheet in zip(subtabs, data["Sheet Name"]):
+            with tab:
+                df = clean_df(load_sheet(sheet)).astype(str)
 
-    for tab, sheet_name in zip(subtabs, invested_sheets["Sheet Name"]):
-        with tab:
-            df = clean_df(load_sheet(sheet_name)).astype(str)
+                inv, cur, pnl, pct = section_summary(df)
+                render_section_dashboard(inv, cur, pnl, pct)
 
-            invested, current, pnl, pct = section_summary(df)
-            render_section_dashboard(invested, current, pnl, pct)
+                st.divider()
 
-            st.divider()
+                st.dataframe(
+                    df.style.apply(highlight_profit_loss, axis=1),
+                    use_container_width=True,
+                    hide_index=True
+                )
 
-            st.dataframe(
-                df.style.apply(highlight_profit_loss, axis=1),
-                use_container_width=True,
-                hide_index=True
-            )
-
-# ---------------- SOLD ----------------
-with main_tabs[1]:
-    subtabs = st.tabs(sold_sheets["Display Name"].tolist())
-
-    for tab, sheet_name in zip(subtabs, sold_sheets["Sheet Name"]):
-        with tab:
-            df = clean_df(load_sheet(sheet_name)).astype(str)
-
-            invested, current, pnl, pct = section_summary(df)
-            render_section_dashboard(invested, current, pnl, pct)
-
-            st.divider()
-
-            st.dataframe(
-                df.style.apply(highlight_profit_loss, axis=1),
-                use_container_width=True,
-                hide_index=True
-            )
-
-# --------------------------------------------------
-# FOOTER
 # --------------------------------------------------
 st.divider()
-st.caption("📊 Google Sheets powered | Section dashboards | Fully dynamic | Zero cost")
+st.caption("📊 Fully dynamic | Google Sheets powered | Zero cost")
