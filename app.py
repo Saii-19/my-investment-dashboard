@@ -44,14 +44,24 @@ def clean_df(df: pd.DataFrame) -> pd.DataFrame:
 # ROW COLORING (PROFIT / LOSS)
 # --------------------------------------------------
 def highlight_profit_loss(row):
-    text = " ".join(row.astype(str))
+    pnl = ""
+    pct = ""
 
-    if "-" in text:
-        return ["background-color: #3a1d1d"] * len(row)  # red
-    if "+" in text:
+    if "P&L" in row.index:
+        pnl = str(row["P&L"]).strip()
+
+    if "Percentage" in row.index:
+        pct = str(row["Percentage"]).strip()
+
+    # Decide color
+    if pnl.startswith("+") or pct.startswith("+"):
         return ["background-color: #1d3a2a"] * len(row)  # green
 
+    if pnl.startswith("-") or pct.startswith("-"):
+        return ["background-color: #3a1d1d"] * len(row)  # red
+
     return [""] * len(row)
+
 
 # --------------------------------------------------
 # DASHBOARD
