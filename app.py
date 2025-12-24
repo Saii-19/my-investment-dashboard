@@ -11,7 +11,12 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("📊 My Investment Dashboard")
+dashboard = clean_df(load_sheet("Dashboard")).astype(str)
+
+as_of_date = dashboard.iloc[0, 4].strip()  # change index if needed
+
+st.title(f"📊 My Investment Dashboard as of {as_of_date}")
+
 
 # --------------------------------------------------
 # GOOGLE SHEET ID
