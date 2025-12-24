@@ -61,9 +61,15 @@ st.header("📌 Portfolio Summary")
 
 dashboard = clean_df(load_sheet("Dashboard")).astype(str)
 
-def colored_metric(label, value):
-    value = value.strip()
-    color = "limegreen" if value.startswith("+") or not value.startswith("-") else "tomato"
+total_invested = dashboard.iloc[0, 0].strip()
+current_value = dashboard.iloc[0, 1].strip()
+pnl_value = dashboard.iloc[0, 2].strip()
+return_pct = dashboard.iloc[0, 3].strip()
+
+# Determine overall direction using P&L
+is_profit = pnl_value.startswith("+")
+
+def dashboard_metric(label, value, color):
     st.markdown(
         f"""
         <div>
@@ -79,13 +85,32 @@ def colored_metric(label, value):
 c1, c2, c3, c4 = st.columns(4)
 
 with c1:
-    colored_metric("💰 Total Invested", dashboard.iloc[0, 0])
+    # Invested is always neutral
+    dashboard_metric("💰 Total Invested", total_invested, "white")
+
 with c2:
-    colored_metric("📈 Current Value", dashboard.iloc[0, 1])
+    # Current Value follows overall P&L
+    dashboard_metric(
+        "📈 Current Value",
+        current_value,
+        "limegreen" if is_profit else "tomato"
+    )
+
 with c3:
-    colored_metric("📊 P&L", dashboard.iloc[0, 2])
+    # P&L color by sign
+    dashboard_metric(
+        "📊 P&L",
+        pnl_value,
+        "limegreen" if pnl_value.startswith("+") else "tomato"
+    )
+
 with c4:
-    colored_metric("📈 Return %", dashboard.iloc[0, 3])
+    # Return % color by sign
+    dashboard_metric(
+        "📈 Return %",
+        return_pct,
+        "limegreen" if return_pct.startswith("+") else "tomato"
+    )
 
 # --------------------------------------------------
 # INVESTED / SOLD SEPARATION
@@ -98,7 +123,7 @@ visible = config[config["Show"].str.upper() == "YES"]
 invested_sheets = visible[visible["Sheet Name"].str.contains("Invested", case=False)]
 sold_sheets = visible[visible["Sheet Name"].str.contains("Sold", case=False)]
 
-main_tabs = st.tabs(["📥 Invested", "📤 Sold"])
+main_tabs = st.tabs(["💰 Invested", "⛔ Sold"])
 
 # ---------------- INVESTED ----------------
 with main_tabs[0]:
@@ -130,4 +155,4 @@ with main_tabs[1]:
 # FOOTER
 # --------------------------------------------------
 st.divider()
-st.caption("📊 Google Sheets powered | Fully dynamic | Zero-cost personal dashboard")
+st.caption("📊 Google Sheets powered | Fully dynamic | Text-only | Zero cost")
