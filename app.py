@@ -14,12 +14,12 @@ st.set_page_config(
 st.title("📊 My Investment Dashboard")
 
 # --------------------------------------------------
-# GOOGLE SHEET ID  ⚠️ REPLACE THIS
+# GOOGLE SHEET ID
 # --------------------------------------------------
-SHEET_ID = "1IStj3ZAU1yLbCsT6Pa6ioq6UJVdJBDbistzfEnVpK_0"
+SHEET_ID = "PASTE_YOUR_SHEET_ID_HERE"
 
 # --------------------------------------------------
-# LOAD GOOGLE SHEET (TEXT ONLY, SPACE SAFE)
+# LOAD GOOGLE SHEET (TEXT ONLY)
 # --------------------------------------------------
 @st.cache_data(ttl=300)
 def load_sheet(sheet_name: str) -> pd.DataFrame:
@@ -31,7 +31,7 @@ def load_sheet(sheet_name: str) -> pd.DataFrame:
     return pd.read_csv(url, dtype=str)
 
 # --------------------------------------------------
-# CLEAN DATAFRAME (REMOVE BLANKS / UNNAMED)
+# CLEAN DATAFRAME
 # --------------------------------------------------
 def clean_df(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
@@ -41,28 +41,21 @@ def clean_df(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 # --------------------------------------------------
-# ROW COLORING — PROFIT / LOSS (CORRECT LOGIC)
+# ROW COLORING — PROFIT / LOSS
 # --------------------------------------------------
 def highlight_profit_loss(row):
-    pnl = ""
-    pct = ""
-
-    if "P&L" in row.index:
-        pnl = str(row["P&L"]).strip()
-
-    if "Percentage" in row.index:
-        pct = str(row["Percentage"]).strip()
+    pnl = str(row.get("P&L", "")).strip()
+    pct = str(row.get("Percentage", "")).strip()
 
     if pnl.startswith("+") or pct.startswith("+"):
-        return ["background-color: #1d3a2a"] * len(row)   # GREEN
-
+        return ["background-color: #1d3a2a"] * len(row)
     if pnl.startswith("-") or pct.startswith("-"):
-        return ["background-color: #3a1d1d"] * len(row)   # RED
+        return ["background-color: #3a1d1d"] * len(row)
 
     return [""] * len(row)
 
 # --------------------------------------------------
-# DASHBOARD (TEXT-ONLY + COLOR)
+# DASHBOARD
 # --------------------------------------------------
 st.header("📌 Portfolio Summary")
 
@@ -71,7 +64,6 @@ dashboard = clean_df(load_sheet("Dashboard")).astype(str)
 def colored_metric(label, value):
     value = value.strip()
     color = "limegreen" if value.startswith("+") or not value.startswith("-") else "tomato"
-
     st.markdown(
         f"""
         <div>
@@ -84,44 +76,58 @@ def colored_metric(label, value):
         unsafe_allow_html=True
     )
 
-col1, col2, col3, col4 = st.columns(4)
+c1, c2, c3, c4 = st.columns(4)
 
-with col1:
+with c1:
     colored_metric("💰 Total Invested", dashboard.iloc[0, 0])
-with col2:
+with c2:
     colored_metric("📈 Current Value", dashboard.iloc[0, 1])
-with col3:
+with c3:
     colored_metric("📊 P&L", dashboard.iloc[0, 2])
-with col4:
+with c4:
     colored_metric("📈 Return %", dashboard.iloc[0, 3])
 
 # --------------------------------------------------
-# CONFIG-DRIVEN TABS (FUTURE PROOF)
+# INVESTED / SOLD SEPARATION
 # --------------------------------------------------
 st.divider()
 
 config = clean_df(load_sheet("Config")).astype(str)
 visible = config[config["Show"].str.upper() == "YES"]
 
-tab_titles = visible["Display Name"].tolist()
-sheet_names = visible["Sheet Name"].tolist()
+invested_sheets = visible[visible["Sheet Name"].str.contains("Invested", case=False)]
+sold_sheets = visible[visible["Sheet Name"].str.contains("Sold", case=False)]
 
-tabs = st.tabs(tab_titles)
+main_tabs = st.tabs(["📥 Invested", "📤 Sold"])
 
-for tab, sheet_name in zip(tabs, sheet_names):
-    with tab:
-        df = clean_df(load_sheet(sheet_name)).astype(str)
+# ---------------- INVESTED ----------------
+with main_tabs[0]:
+    subtabs = st.tabs(invested_sheets["Display Name"].tolist())
 
-        styled_df = df.style.apply(highlight_profit_loss, axis=1)
+    for tab, sheet_name in zip(subtabs, invested_sheets["Sheet Name"]):
+        with tab:
+            df = clean_df(load_sheet(sheet_name)).astype(str)
+            st.dataframe(
+                df.style.apply(highlight_profit_loss, axis=1),
+                use_container_width=True,
+                hide_index=True
+            )
 
-        st.dataframe(
-            styled_df,
-            use_container_width=True,
-            hide_index=True
-        )
+# ---------------- SOLD ----------------
+with main_tabs[1]:
+    subtabs = st.tabs(sold_sheets["Display Name"].tolist())
+
+    for tab, sheet_name in zip(subtabs, sold_sheets["Sheet Name"]):
+        with tab:
+            df = clean_df(load_sheet(sheet_name)).astype(str)
+            st.dataframe(
+                df.style.apply(highlight_profit_loss, axis=1),
+                use_container_width=True,
+                hide_index=True
+            )
 
 # --------------------------------------------------
 # FOOTER
 # --------------------------------------------------
 st.divider()
-st.caption("📊 Data source: Google Sheets | Auto-updated | Text-only dashboard")
+st.caption("📊 Google Sheets powered | Fully dynamic | Zero-cost personal dashboard")
