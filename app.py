@@ -16,7 +16,7 @@ st.title("📊 My Investment Dashboard")
 # --------------------------------------------------
 # GOOGLE SHEET ID
 # --------------------------------------------------
-SHEET_ID = "PASTE_YOUR_SHEET_ID_HERE"
+SHEET_ID = "1IStj3ZAU1yLbCsT6Pa6ioq6UJVdJBDbistzfEnVpK_0"
 
 # --------------------------------------------------
 # LOAD GOOGLE SHEET (TEXT ONLY)
