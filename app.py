@@ -8,10 +8,16 @@ st.title("📊 My Investment Dashboard")
 
 SHEET_ID = "1IStj3ZAU1yLbCsT6Pa6ioq6UJVdJBDbistzfEnVpK_0"
 
+import urllib.parse
+import pandas as pd
+import streamlit as st
+
 @st.cache_data(ttl=300)
 def load_sheet(sheet_name):
-    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_name}"
-    return pd.read_csv(url)
+    encoded_sheet = urllib.parse.quote(sheet_name)
+    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded_sheet}"
+    return pd.read_csv(url, dtype=str)
+
 
 # ---------------- Dashboard ----------------
 st.header("📌 Portfolio Summary")
