@@ -48,11 +48,17 @@ def to_number(val):
 # SECTION TOTALS
 # --------------------------------------------------
 def section_summary(df):
-    invested = df.get("Invested Total", []).apply(to_number).sum()
-    current = df.get("Current Total", []).apply(to_number).sum()
-    pnl = df.get("P&L", []).apply(to_number).sum()
-    pct = (pnl / invested * 100) if invested else 0
+    invested_col = df["Invested Total"] if "Invested Total" in df.columns else pd.Series(dtype=float)
+    current_col  = df["Current Total"]  if "Current Total"  in df.columns else pd.Series(dtype=float)
+    pnl_col      = df["P&L"]            if "P&L"            in df.columns else pd.Series(dtype=float)
+
+    invested = invested_col.apply(to_number).sum()
+    current  = current_col.apply(to_number).sum()
+    pnl      = pnl_col.apply(to_number).sum()
+
+    pct = (pnl / invested * 100) if invested != 0 else 0.0
     return invested, current, pnl, pct
+
 
 # --------------------------------------------------
 # SECTION DASHBOARD (CUSTOM – NO st.metric)
