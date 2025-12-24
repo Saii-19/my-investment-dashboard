@@ -37,7 +37,7 @@ def clean_df(df: pd.DataFrame) -> pd.DataFrame:
     return df.fillna("")
 
 # --------------------------------------------------
-# TEXT → NUMBER (CALC ONLY)
+# TEXT → NUMBER (CALCULATION ONLY)
 # --------------------------------------------------
 def to_number(val):
     try:
@@ -52,7 +52,7 @@ def to_number(val):
         return 0.0
 
 # --------------------------------------------------
-# SECTION SUMMARY
+# SECTION SUMMARY (SAFE)
 # --------------------------------------------------
 def section_summary(df):
     invested_col = df["Invested Total"] if "Invested Total" in df.columns else pd.Series(dtype=float)
@@ -67,14 +67,17 @@ def section_summary(df):
     return invested, current, pnl, pct
 
 # --------------------------------------------------
-# SECTION DASHBOARD UI
+# SECTION CARD
 # --------------------------------------------------
 def section_card(label, value, color, delta=None):
     arrow_html = ""
     if delta is not None:
         arrow = "↑" if delta >= 0 else "↓"
         delta_color = "limegreen" if delta >= 0 else "tomato"
-        arrow_html = f"<div style='color:{delta_color};font-size:14px'>{arrow} ₹{abs(delta):,.2f}</div>"
+        arrow_html = (
+            f"<div style='color:{delta_color};font-size:14px'>"
+            f"{arrow} ₹{abs(delta):,.2f}</div>"
+        )
 
     st.markdown(
         f"""
@@ -89,8 +92,10 @@ def section_card(label, value, color, delta=None):
         unsafe_allow_html=True
     )
 
+# --------------------------------------------------
+# SECTION DASHBOARD (NEUTRAL AWARE)
+# --------------------------------------------------
 def render_section_dashboard(inv, cur, pnl, pct):
-    # Neutral state (no data)
     if inv == 0 and cur == 0:
         color = "white"
         delta = None
@@ -102,16 +107,12 @@ def render_section_dashboard(inv, cur, pnl, pct):
 
     with c1:
         section_card("💰 Total Invested", f"₹{inv:,.2f}", "white")
-
     with c2:
         section_card("📈 Current Value", f"₹{cur:,.2f}", color, delta)
-
     with c3:
         section_card("📊 P&L", f"₹{pnl:,.2f}", color)
-
     with c4:
         section_card("📈 Return %", f"{pct:.2f}%", color)
-
 
 # --------------------------------------------------
 # ROW COLORING
@@ -161,11 +162,9 @@ sold_sheets = visible[visible["Sheet Name"].str.contains("Sold", case=False)]
 
 tabs = st.tabs(["📥 Invested", "📤 Sold"])
 
-# ---------------- INVESTED ----------------
+# ---------------- INVESTED (WITH ALLOCATION & TAB COLORS) ----------------
 with tabs[0]:
-    invested_dfs = []
-    invested_vals = []
-    invested_pnls = []
+    invested_dfs, invested_vals, invested_pnls = [], [], []
 
     for sheet in invested_sheets["Sheet Name"]:
         df = clean_df(load_sheet(sheet)).astype(str)
@@ -176,15 +175,18 @@ with tabs[0]:
         invested_pnls.append(pnl)
 
     total_invested = sum(invested_vals)
+
     tab_titles = [
         f"{name} ({(val/total_invested*100 if total_invested else 0):.0f}%)"
         for name, val in zip(invested_sheets["Display Name"], invested_vals)
     ]
 
-    # 🔥 WORKING TAB COLOR CSS (FIXED)
     css = "<style>"
-    for i, pnl in enumerate(invested_pnls):
-        color = "limegreen" if pnl >= 0 else "tomato"
+    for i, (inv, pnl) in enumerate(zip(invested_vals, invested_pnls)):
+        if inv == 0:
+            color = "white"
+        else:
+            color = "limegreen" if pnl >= 0 else "tomato"
         css += f"""
         button[data-baseweb="tab"]:nth-of-type({i+1}) {{
             color: {color} !important;
@@ -208,7 +210,7 @@ with tabs[0]:
                 hide_index=True
             )
 
-# ---------------- SOLD ----------------
+# ---------------- SOLD (NEUTRAL WHEN EMPTY) ----------------
 with tabs[1]:
     subtabs = st.tabs(sold_sheets["Display Name"].tolist())
 
@@ -216,6 +218,7 @@ with tabs[1]:
         with tab:
             df = clean_df(load_sheet(sheet)).astype(str)
             inv, cur, pnl, pct = section_summary(df)
+
             render_section_dashboard(inv, cur, pnl, pct)
 
             st.divider()
@@ -229,4 +232,4 @@ with tabs[1]:
 # FOOTER
 # --------------------------------------------------
 st.divider()
-st.caption("📊 Google Sheets powered | Allocation & P/L aware | Fully dynamic | Zero cost")
+st.caption("📊 Google Sheets Powered")
