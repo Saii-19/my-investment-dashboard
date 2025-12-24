@@ -41,6 +41,60 @@ def clean_df(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 # --------------------------------------------------
+# TEXT → NUMBER (ONLY FOR CALCULATION)
+# --------------------------------------------------
+def to_number(val):
+    try:
+        return float(
+            str(val)
+            .replace("₹", "")
+            .replace(",", "")
+            .replace("%", "")
+            .strip()
+        )
+    except:
+        return 0.0
+
+# --------------------------------------------------
+# SECTION SUMMARY CALCULATION
+# --------------------------------------------------
+def section_summary(df):
+    invested = df.get("Invested Total", pd.Series()).apply(to_number).sum()
+    current = df.get("Current Total", pd.Series()).apply(to_number).sum()
+    pnl = df.get("P&L", pd.Series()).apply(to_number).sum()
+    pct = (pnl / invested * 100) if invested != 0 else 0
+    return invested, current, pnl, pct
+
+# --------------------------------------------------
+# SECTION SUMMARY UI
+# --------------------------------------------------
+def render_section_dashboard(invested, current, pnl, pct):
+    is_profit = pnl >= 0
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    c1.metric("💰 Total Invested", f"₹{invested:,.2f}")
+
+    c2.metric(
+        "📈 Current Value",
+        f"₹{current:,.2f}",
+        delta=f"₹{pnl:,.2f}",
+        delta_color="normal" if is_profit else "inverse",
+    )
+
+    c3.metric(
+        "📊 P&L",
+        f"₹{pnl:,.2f}",
+        delta_color="normal" if is_profit else "inverse",
+    )
+
+    c4.metric(
+        "📈 Return %",
+        f"{pct:.2f}%",
+        delta_color="normal" if pct >= 0 else "inverse",
+    )
+
+# --------------------------------------------------
 # ROW COLORING — PROFIT / LOSS
 # --------------------------------------------------
 def highlight_profit_loss(row):
@@ -55,7 +109,7 @@ def highlight_profit_loss(row):
     return [""] * len(row)
 
 # --------------------------------------------------
-# DASHBOARD
+# DASHBOARD (TOP SUMMARY)
 # --------------------------------------------------
 st.header("📌 Portfolio Summary")
 
@@ -66,7 +120,7 @@ current_value = dashboard.iloc[0, 1].strip()
 pnl_value = dashboard.iloc[0, 2].strip()
 return_pct = dashboard.iloc[0, 3].strip()
 
-# ✅ CORRECT PROFIT DETECTION
+# Overall profit detection (correct logic)
 is_profit = not pnl_value.startswith("-")
 
 def dashboard_metric(label, value, color):
@@ -85,11 +139,9 @@ def dashboard_metric(label, value, color):
 c1, c2, c3, c4 = st.columns(4)
 
 with c1:
-    # Invested always neutral
     dashboard_metric("💰 Total Invested", total_invested, "white")
 
 with c2:
-    # Current Value follows overall P&L
     dashboard_metric(
         "📈 Current Value",
         current_value,
@@ -130,6 +182,12 @@ with main_tabs[0]:
     for tab, sheet_name in zip(subtabs, invested_sheets["Sheet Name"]):
         with tab:
             df = clean_df(load_sheet(sheet_name)).astype(str)
+
+            invested, current, pnl, pct = section_summary(df)
+            render_section_dashboard(invested, current, pnl, pct)
+
+            st.divider()
+
             st.dataframe(
                 df.style.apply(highlight_profit_loss, axis=1),
                 use_container_width=True,
@@ -143,6 +201,12 @@ with main_tabs[1]:
     for tab, sheet_name in zip(subtabs, sold_sheets["Sheet Name"]):
         with tab:
             df = clean_df(load_sheet(sheet_name)).astype(str)
+
+            invested, current, pnl, pct = section_summary(df)
+            render_section_dashboard(invested, current, pnl, pct)
+
+            st.divider()
+
             st.dataframe(
                 df.style.apply(highlight_profit_loss, axis=1),
                 use_container_width=True,
@@ -153,4 +217,4 @@ with main_tabs[1]:
 # FOOTER
 # --------------------------------------------------
 st.divider()
-st.caption("📊 Google Sheets powered | Fully dynamic | Text-only | Zero cost")
+st.caption("📊 Google Sheets powered | Section dashboards | Fully dynamic | Zero cost")
