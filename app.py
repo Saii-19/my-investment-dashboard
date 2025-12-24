@@ -1,64 +1,75 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
+import urllib.parse
 
-st.set_page_config(page_title="My Investments", layout="wide")
+# --------------------------------------------------
+# PAGE CONFIG
+# --------------------------------------------------
+st.set_page_config(
+    page_title="My Investment Dashboard",
+    page_icon="📊",
+    layout="wide"
+)
 
 st.title("📊 My Investment Dashboard")
 
-SHEET_ID = "1IStj3ZAU1yLbCsT6Pa6ioq6UJVdJBDbistzfEnVpK_0"
+# --------------------------------------------------
+# GOOGLE SHEET ID (REPLACE THIS)
+# --------------------------------------------------
+SHEET_ID = "PASTE_YOUR_SHEET_ID_HERE"
 
-import urllib.parse
-import pandas as pd
-import streamlit as st
-
+# --------------------------------------------------
+# LOAD GOOGLE SHEET (TEXT-ONLY, SPACE-SAFE)
+# --------------------------------------------------
 @st.cache_data(ttl=300)
-def load_sheet(sheet_name):
+def load_sheet(sheet_name: str) -> pd.DataFrame:
     encoded_sheet = urllib.parse.quote(sheet_name)
-    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded_sheet}"
+    url = (
+        f"https://docs.google.com/spreadsheets/d/{SHEET_ID}"
+        f"/gviz/tq?tqx=out:csv&sheet={encoded_sheet}"
+    )
     return pd.read_csv(url, dtype=str)
 
-
-# ---------------- Dashboard ----------------
+# --------------------------------------------------
+# DASHBOARD (TEXT-ONLY REPLICATION)
+# --------------------------------------------------
 st.header("📌 Portfolio Summary")
 
 dashboard = load_sheet("Dashboard")
 
+dashboard = dashboard.astype(str)
+
 col1, col2, col3, col4 = st.columns(4)
 
-col1.metric("💰 Total Invested", str(dashboard.iloc[0, 0]))
-col2.metric("📈 Current Value", str(dashboard.iloc[0, 1]))
-col3.metric("📊 P&L", str(dashboard.iloc[0, 2]))
-col4.metric("📈 Return %", str(dashboard.iloc[0, 3]))
+col1.metric("💰 Total Invested", dashboard.iloc[0, 0])
+col2.metric("📈 Current Value", dashboard.iloc[0, 1])
+col3.metric("📊 P&L", dashboard.iloc[0, 2])
+col4.metric("📈 Return %", dashboard.iloc[0, 3])
 
-
+# --------------------------------------------------
+# CONFIG-DRIVEN TABS
+# --------------------------------------------------
 st.divider()
 
-# ---------------- Tabs ----------------
-tabs = st.tabs([
-    "📈 Stocks Invested",
-    "📉 Stocks Sold",
-    "📊 MF Invested",
-    "📉 MF Sold",
-    "🏦 FD Invested",
-    "🏦 FD Sold"
-])
+config = load_sheet("Config")
+config = config.astype(str)
 
-sheet_map = {
-    "📈 Stocks Invested": "Stocks Invested",
-    "📉 Stocks Sold": "Stocks Sold",
-    "📊 MF Invested": "Index Mutual Funds Invested",
-    "📉 MF Sold": "Index Mutual Funds Sold",
-    "🏦 FD Invested": "Fixed Deposits Invested",
-    "🏦 FD Sold": "Fixed Deposits Sold"
-}
+# Show only rows marked YES
+visible = config[config["Show"].str.upper() == "YES"]
 
-for tab, sheet_name in zip(tabs, sheet_map.values()):
+tab_titles = visible["Display Name"].tolist()
+sheet_names = visible["Sheet Name"].tolist()
+
+tabs = st.tabs(tab_titles)
+
+for tab, sheet_name in zip(tabs, sheet_names):
     with tab:
         df = load_sheet(sheet_name)
+        df = df.astype(str)  # replicate sheet exactly
         st.dataframe(df, use_container_width=True)
 
-        num_cols = df.select_dtypes(include='number').columns
-        if len(num_cols) > 0:
-            fig = px.bar(df, x=df.columns[0], y=num_cols[0])
-            st.plotly_chart(fig, use_container_width=True)
+# --------------------------------------------------
+# FOOTER
+# --------------------------------------------------
+st.divider()
+st.caption("📊 Data source: Google Sheets | Updated dynamically")
