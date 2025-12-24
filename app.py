@@ -177,26 +177,43 @@ sold_sheets = visible[visible["Sheet Name"].str.contains("Sold", case=False)]
 
 tabs = st.tabs(["📥 Invested", "📤 Sold"])
 
-# ---------------- INVESTED (WITH ALLOCATION %) ----------------
+# ---------------- INVESTED (WITH ALLOCATION & TAB COLORS) ----------------
 with tabs[0]:
     invested_dfs = []
     invested_vals = []
+    invested_pnls = []
 
     for sheet in invested_sheets["Sheet Name"]:
         df_tmp = clean_df(load_sheet(sheet)).astype(str)
-        invested_vals.append(invested_amount(df_tmp))
+        inv, cur, pnl, pct = section_summary(df_tmp)
+
+        invested_vals.append(inv)
+        invested_pnls.append(pnl)
         invested_dfs.append(df_tmp)
 
     total_invested_all = sum(invested_vals)
 
     tab_titles = []
     for name, val in zip(invested_sheets["Display Name"], invested_vals):
-        pct = (val / total_invested_all * 100) if total_invested_all else 0
-        tab_titles.append(f"{name} ({pct:.0f}%)")
+        pct_alloc = (val / total_invested_all * 100) if total_invested_all else 0
+        tab_titles.append(f"{name} ({pct_alloc:.0f}%)")
+
+    # ---- CSS for tab color (profit/loss) ----
+    tab_css = "<style>"
+    for i, pnl in enumerate(invested_pnls):
+        color = "limegreen" if pnl >= 0 else "tomato"
+        tab_css += f"""
+        div[data-baseweb="tab"]:nth-child({i+1}) {{
+            color: {color} !important;
+            font-weight: 600;
+        }}
+        """
+    tab_css += "</style>"
+    st.markdown(tab_css, unsafe_allow_html=True)
 
     subtabs = st.tabs(tab_titles)
 
-    for tab, sheet, df in zip(subtabs, invested_sheets["Sheet Name"], invested_dfs):
+    for tab, df in zip(subtabs, invested_dfs):
         with tab:
             inv, cur, pnl, pct = section_summary(df)
             render_section_dashboard(inv, cur, pnl, pct)
@@ -232,4 +249,4 @@ with tabs[1]:
 # FOOTER
 # --------------------------------------------------
 st.divider()
-st.caption("📊 Google Sheets Powered")
+st.caption("📊 Google Sheets powered | Allocation & P/L aware | Fully dynamic | Zero cost")
