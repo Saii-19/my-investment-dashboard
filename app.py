@@ -232,4 +232,4 @@ with tabs[1]:
 # FOOTER
 # --------------------------------------------------
 st.divider()
-st.caption("📊 Google Sheets powered | Allocation aware | Fully dynamic | Zero cost")
+st.caption("📊 Google Sheets Powered")
