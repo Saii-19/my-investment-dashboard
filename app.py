@@ -12,7 +12,7 @@ st.set_page_config(
 )
 
 # --------------------------------------------------
-# GOOGLE SHEET ID (ALREADY SET)
+# GOOGLE SHEET ID
 # --------------------------------------------------
 SHEET_ID = "1IStj3ZAU1yLbCsT6Pa6ioq6UJVdJBDbistzfEnVpK_0"
 
@@ -37,7 +37,7 @@ def clean_df(df: pd.DataFrame) -> pd.DataFrame:
     return df.fillna("")
 
 # --------------------------------------------------
-# TEXT → NUMBER (FOR CALCULATION ONLY)
+# TEXT → NUMBER (FOR CALC ONLY)
 # --------------------------------------------------
 def to_number(val):
     try:
@@ -67,14 +67,25 @@ def section_summary(df):
     return invested, current, pnl, pct
 
 # --------------------------------------------------
-# SECTION DASHBOARD (CUSTOM – COLORS & ARROWS FIXED)
+# ONLY INVESTED AMOUNT (FOR ALLOCATION)
+# --------------------------------------------------
+def invested_amount(df):
+    if "Invested Total" in df.columns:
+        return df["Invested Total"].apply(to_number).sum()
+    return 0.0
+
+# --------------------------------------------------
+# SECTION DASHBOARD (CUSTOM)
 # --------------------------------------------------
 def section_card(label, value, color, delta=None):
     arrow_html = ""
     if delta is not None:
         arrow = "↑" if delta >= 0 else "↓"
         delta_color = "limegreen" if delta >= 0 else "tomato"
-        arrow_html = f"<div style='color:{delta_color};font-size:14px'>{arrow} ₹{abs(delta):,.2f}</div>"
+        arrow_html = (
+            f"<div style='color:{delta_color};font-size:14px'>"
+            f"{arrow} ₹{abs(delta):,.2f}</div>"
+        )
 
     st.markdown(
         f"""
@@ -97,13 +108,10 @@ def render_section_dashboard(inv, cur, pnl, pct):
 
     with c1:
         section_card("💰 Total Invested", f"₹{inv:,.2f}", "white")
-
     with c2:
         section_card("📈 Current Value", f"₹{cur:,.2f}", color, pnl)
-
     with c3:
         section_card("📊 P&L", f"₹{pnl:,.2f}", color)
-
     with c4:
         section_card("📈 Return %", f"{pct:.2f}%", color)
 
@@ -119,7 +127,7 @@ def highlight_profit_loss(row):
     return [""] * len(row)
 
 # --------------------------------------------------
-# DASHBOARD (TOP SUMMARY + DATE IN TITLE)
+# TOP DASHBOARD + DATE IN TITLE
 # --------------------------------------------------
 dashboard = clean_df(load_sheet("Dashboard")).astype(str)
 
@@ -151,14 +159,10 @@ def top_card(label, val, color):
 
 a, b, c, d = st.columns(4)
 
-with a:
-    top_card("💰 Total Invested", total_inv, "white")
-with b:
-    top_card("📈 Current Value", current_val, "limegreen" if profit else "tomato")
-with c:
-    top_card("📊 P&L", pnl_val, "limegreen" if profit else "tomato")
-with d:
-    top_card("📈 Return %", ret_pct, "limegreen" if not ret_pct.startswith("-") else "tomato")
+with a: top_card("💰 Total Invested", total_inv, "white")
+with b: top_card("📈 Current Value", current_val, "limegreen" if profit else "tomato")
+with c: top_card("📊 P&L", pnl_val, "limegreen" if profit else "tomato")
+with d: top_card("📈 Return %", ret_pct, "limegreen" if not ret_pct.startswith("-") else "tomato")
 
 # --------------------------------------------------
 # INVESTED / SOLD
@@ -168,31 +172,64 @@ st.divider()
 config = clean_df(load_sheet("Config")).astype(str)
 visible = config[config["Show"].str.upper() == "YES"]
 
-invested = visible[visible["Sheet Name"].str.contains("Invested", case=False)]
-sold = visible[visible["Sheet Name"].str.contains("Sold", case=False)]
+invested_sheets = visible[visible["Sheet Name"].str.contains("Invested", case=False)]
+sold_sheets = visible[visible["Sheet Name"].str.contains("Sold", case=False)]
 
 tabs = st.tabs(["📥 Invested", "📤 Sold"])
 
-for group, data in zip(tabs, [invested, sold]):
-    with group:
-        subtabs = st.tabs(data["Display Name"].tolist())
-        for tab, sheet in zip(subtabs, data["Sheet Name"]):
-            with tab:
-                df = clean_df(load_sheet(sheet)).astype(str)
+# ---------------- INVESTED (WITH ALLOCATION %) ----------------
+with tabs[0]:
+    invested_dfs = []
+    invested_vals = []
 
-                inv, cur, pnl, pct = section_summary(df)
-                render_section_dashboard(inv, cur, pnl, pct)
+    for sheet in invested_sheets["Sheet Name"]:
+        df_tmp = clean_df(load_sheet(sheet)).astype(str)
+        invested_vals.append(invested_amount(df_tmp))
+        invested_dfs.append(df_tmp)
 
-                st.divider()
+    total_invested_all = sum(invested_vals)
 
-                st.dataframe(
-                    df.style.apply(highlight_profit_loss, axis=1),
-                    use_container_width=True,
-                    hide_index=True
-                )
+    tab_titles = []
+    for name, val in zip(invested_sheets["Display Name"], invested_vals):
+        pct = (val / total_invested_all * 100) if total_invested_all else 0
+        tab_titles.append(f"{name} ({pct:.0f}%)")
+
+    subtabs = st.tabs(tab_titles)
+
+    for tab, sheet, df in zip(subtabs, invested_sheets["Sheet Name"], invested_dfs):
+        with tab:
+            inv, cur, pnl, pct = section_summary(df)
+            render_section_dashboard(inv, cur, pnl, pct)
+
+            st.divider()
+
+            st.dataframe(
+                df.style.apply(highlight_profit_loss, axis=1),
+                use_container_width=True,
+                hide_index=True
+            )
+
+# ---------------- SOLD ----------------
+with tabs[1]:
+    subtabs = st.tabs(sold_sheets["Display Name"].tolist())
+
+    for tab, sheet in zip(subtabs, sold_sheets["Sheet Name"]):
+        with tab:
+            df = clean_df(load_sheet(sheet)).astype(str)
+
+            inv, cur, pnl, pct = section_summary(df)
+            render_section_dashboard(inv, cur, pnl, pct)
+
+            st.divider()
+
+            st.dataframe(
+                df.style.apply(highlight_profit_loss, axis=1),
+                use_container_width=True,
+                hide_index=True
+            )
 
 # --------------------------------------------------
 # FOOTER
 # --------------------------------------------------
 st.divider()
-st.caption("📊 Google Sheets powered | Fully dynamic | Text-only | Zero cost")
+st.caption("📊 Google Sheets powered | Allocation aware | Fully dynamic | Zero cost")
