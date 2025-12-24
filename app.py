@@ -118,7 +118,18 @@ def highlight_profit_loss(row):
 dashboard = clean_df(load_sheet("Dashboard")).astype(str)
 as_of_date = dashboard["Date Checked"].iloc[0] if "Date Checked" in dashboard.columns else ""
 
-st.title(f"📊 My Investment Dashboard as of {as_of_date}")
+st.markdown(
+    f"""
+    <h1 style="margin-bottom:0">
+        📊 My Investment Dashboard
+        <span style="font-size:16px; font-weight:400; color:#9ca3af">
+            &nbsp;as of {as_of_date}
+        </span>
+    </h1>
+    """,
+    unsafe_allow_html=True
+)
+
 
 total_inv, current_val, pnl_val, ret_pct = dashboard.iloc[0, 0:4].astype(str)
 profit = not pnl_val.startswith("-")
