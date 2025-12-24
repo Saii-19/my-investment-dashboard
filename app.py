@@ -19,10 +19,12 @@ st.header("📌 Portfolio Summary")
 dashboard = load_sheet("Dashboard")
 
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("💰 Total Invested", f"₹{dashboard.iloc[0,0]:,.2f}")
-col2.metric("📈 Current Value", f"₹{dashboard.iloc[0,1]:,.2f}")
-col3.metric("📊 P&L", f"₹{dashboard.iloc[0,2]:,.2f}")
-col4.metric("📈 Return %", f"{dashboard.iloc[0,3]:.2f}%")
+
+col1.metric("💰 Total Invested", str(dashboard.iloc[0, 0]))
+col2.metric("📈 Current Value", str(dashboard.iloc[0, 1]))
+col3.metric("📊 P&L", str(dashboard.iloc[0, 2]))
+col4.metric("📈 Return %", str(dashboard.iloc[0, 3]))
+
 
 st.divider()
 
