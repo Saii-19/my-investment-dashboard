@@ -37,7 +37,7 @@ def clean_df(df: pd.DataFrame) -> pd.DataFrame:
     return df.fillna("")
 
 # --------------------------------------------------
-# TEXT → NUMBER (CALCULATION ONLY)
+# TEXT → NUMBER (FOR CALC ONLY)
 # --------------------------------------------------
 def to_number(val):
     try:
@@ -52,7 +52,7 @@ def to_number(val):
         return 0.0
 
 # --------------------------------------------------
-# SECTION SUMMARY (SAFE)
+# SECTION SUMMARY
 # --------------------------------------------------
 def section_summary(df):
     invested_col = df["Invested Total"] if "Invested Total" in df.columns else pd.Series(dtype=float)
@@ -63,33 +63,31 @@ def section_summary(df):
     current  = current_col.apply(to_number).sum()
     pnl      = pnl_col.apply(to_number).sum()
 
-    pct = (pnl / invested * 100) if invested != 0 else 0.0
+    pct = (pnl / invested * 100) if invested else 0.0
     return invested, current, pnl, pct
 
 # --------------------------------------------------
-# SECTION CARD
+# UI CARD
 # --------------------------------------------------
 def section_card(label, value, color, delta=None):
     arrow_html = ""
     if delta is not None:
         arrow = "↑" if delta >= 0 else "↓"
-        delta_color = "limegreen" if delta >= 0 else "tomato"
-        arrow_html = (
-            f"<div style='color:{delta_color};font-size:14px'>"
-            f"{arrow} ₹{abs(delta):,.2f}</div>"
-        )
+        arrow_color = "limegreen" if delta >= 0 else "tomato"
+        arrow_html = f"<div style='color:{arrow_color};font-size:14px'>{arrow} ₹{abs(delta):,.2f}</div>"
 
     st.markdown(
-    """
-    <style>
-    button[data-baseweb="tab"] {
-        color: white !important;
-        font-weight: 500 !important;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+        f"""
+        <div>
+            <div style="font-size:14px">{label}</div>
+            <div style="font-size:30px;font-weight:700;color:{color}">
+                {value}
+            </div>
+            {arrow_html}
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 # --------------------------------------------------
 # SECTION DASHBOARD (NEUTRAL AWARE)
@@ -125,11 +123,11 @@ def highlight_profit_loss(row):
     return [""] * len(row)
 
 # --------------------------------------------------
-# TOP DASHBOARD + DATE
+# TOP DASHBOARD
 # --------------------------------------------------
 dashboard = clean_df(load_sheet("Dashboard")).astype(str)
-
 as_of_date = dashboard["Date Checked"].iloc[0] if "Date Checked" in dashboard.columns else ""
+
 st.title(f"📊 My Investment Dashboard as of {as_of_date}")
 
 total_inv, current_val, pnl_val, ret_pct = dashboard.iloc[0, 0:4].astype(str)
@@ -161,22 +159,20 @@ sold_sheets = visible[visible["Sheet Name"].str.contains("Sold", case=False)]
 
 tabs = st.tabs(["📥 Invested", "📤 Sold"])
 
-# ---------------- INVESTED (WITH ALLOCATION & TAB COLORS) ----------------
+# ---------------- INVESTED ----------------
 with tabs[0]:
     invested_dfs, invested_vals, invested_pnls = [], [], []
 
     for sheet in invested_sheets["Sheet Name"]:
         df = clean_df(load_sheet(sheet)).astype(str)
         inv, cur, pnl, pct = section_summary(df)
-
         invested_dfs.append(df)
         invested_vals.append(inv)
         invested_pnls.append(pnl)
 
-    total_invested = sum(invested_vals)
-
-    tab_titles = [
-        f"{name} ({(val/total_invested*100 if total_invested else 0):.0f}%)"
+    total_inv_all = sum(invested_vals)
+    titles = [
+        f"{name} ({(val/total_inv_all*100 if total_inv_all else 0):.0f}%)"
         for name, val in zip(invested_sheets["Display Name"], invested_vals)
     ]
 
@@ -195,7 +191,7 @@ with tabs[0]:
     css += "</style>"
     st.markdown(css, unsafe_allow_html=True)
 
-    subtabs = st.tabs(tab_titles)
+    subtabs = st.tabs(titles)
 
     for tab, df in zip(subtabs, invested_dfs):
         with tab:
@@ -209,15 +205,27 @@ with tabs[0]:
                 hide_index=True
             )
 
-# ---------------- SOLD (NEUTRAL WHEN EMPTY) ----------------
+# ---------------- SOLD (FORCED NEUTRAL) ----------------
 with tabs[1]:
+    # RESET TAB COLORS FOR SOLD
+    st.markdown(
+        """
+        <style>
+        button[data-baseweb="tab"] {
+            color: white !important;
+            font-weight: 500 !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
     subtabs = st.tabs(sold_sheets["Display Name"].tolist())
 
     for tab, sheet in zip(subtabs, sold_sheets["Sheet Name"]):
         with tab:
             df = clean_df(load_sheet(sheet)).astype(str)
             inv, cur, pnl, pct = section_summary(df)
-
             render_section_dashboard(inv, cur, pnl, pct)
 
             st.divider()
@@ -231,4 +239,4 @@ with tabs[1]:
 # FOOTER
 # --------------------------------------------------
 st.divider()
-st.caption("📊 Google Sheets Powered")
+st.caption("📊 Google Sheets Powered | Allocation & P/L aware | Fully dynamic")
