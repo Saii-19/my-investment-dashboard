@@ -80,17 +80,16 @@ def section_card(label, value, color, delta=None):
         )
 
     st.markdown(
-        f"""
-        <div>
-            <div style="font-size:14px">{label}</div>
-            <div style="font-size:30px;font-weight:700;color:{color}">
-                {value}
-            </div>
-            {arrow_html}
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    """
+    <style>
+    button[data-baseweb="tab"] {
+        color: white !important;
+        font-weight: 500 !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 # --------------------------------------------------
 # SECTION DASHBOARD (NEUTRAL AWARE)
