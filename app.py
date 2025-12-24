@@ -125,7 +125,7 @@ dashboard = clean_df(load_sheet("Dashboard")).astype(str)
 
 as_of_date = ""
 if "As of Date" in dashboard.columns:
-    as_of_date = dashboard["As of Date"].iloc[0].strip()
+    as_of_date = dashboard["Date Checked"].iloc[0].strip()
 
 st.title(f"📊 My Investment Dashboard as of {as_of_date}")
 
