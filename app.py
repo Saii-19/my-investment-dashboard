@@ -14,12 +14,12 @@ st.set_page_config(
 st.title("📊 My Investment Dashboard")
 
 # --------------------------------------------------
-# GOOGLE SHEET ID
+# GOOGLE SHEET ID  ⚠️ REPLACE THIS
 # --------------------------------------------------
-SHEET_ID = "PASTE_YOUR_SHEET_ID_HERE"
+SHEET_ID = "1IStj3ZAU1yLbCsT6Pa6ioq6UJVdJBDbistzfEnVpK_0"
 
 # --------------------------------------------------
-# LOAD GOOGLE SHEET (TEXT ONLY, SAFE)
+# LOAD GOOGLE SHEET (TEXT ONLY, SPACE SAFE)
 # --------------------------------------------------
 @st.cache_data(ttl=300)
 def load_sheet(sheet_name: str) -> pd.DataFrame:
@@ -31,17 +31,17 @@ def load_sheet(sheet_name: str) -> pd.DataFrame:
     return pd.read_csv(url, dtype=str)
 
 # --------------------------------------------------
-# CLEAN DATAFRAME
+# CLEAN DATAFRAME (REMOVE BLANKS / UNNAMED)
 # --------------------------------------------------
 def clean_df(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-    df = df.dropna(axis=1, how="all")        # remove empty columns
-    df = df.loc[:, ~df.columns.str.contains("^Unnamed")]  # remove Unnamed
-    df = df.fillna("")                       # remove nan text
+    df = df.dropna(axis=1, how="all")
+    df = df.loc[:, ~df.columns.str.contains("^Unnamed")]
+    df = df.fillna("")
     return df
 
 # --------------------------------------------------
-# ROW COLORING (PROFIT / LOSS)
+# ROW COLORING — PROFIT / LOSS (CORRECT LOGIC)
 # --------------------------------------------------
 def highlight_profit_loss(row):
     pnl = ""
@@ -53,31 +53,30 @@ def highlight_profit_loss(row):
     if "Percentage" in row.index:
         pct = str(row["Percentage"]).strip()
 
-    # Decide color
     if pnl.startswith("+") or pct.startswith("+"):
-        return ["background-color: #1d3a2a"] * len(row)  # green
+        return ["background-color: #1d3a2a"] * len(row)   # GREEN
 
     if pnl.startswith("-") or pct.startswith("-"):
-        return ["background-color: #3a1d1d"] * len(row)  # red
+        return ["background-color: #3a1d1d"] * len(row)   # RED
 
     return [""] * len(row)
 
-
 # --------------------------------------------------
-# DASHBOARD
+# DASHBOARD (TEXT-ONLY + COLOR)
 # --------------------------------------------------
 st.header("📌 Portfolio Summary")
 
-dashboard = clean_df(load_sheet("Dashboard"))
-dashboard = dashboard.astype(str)
+dashboard = clean_df(load_sheet("Dashboard")).astype(str)
 
 def colored_metric(label, value):
-    color = "limegreen" if value.strip().startswith("+") or "-" not in value else "tomato"
+    value = value.strip()
+    color = "limegreen" if value.startswith("+") or not value.startswith("-") else "tomato"
+
     st.markdown(
         f"""
         <div>
             <div style="font-size:14px;">{label}</div>
-            <div style="font-size:32px; font-weight:bold; color:{color};">
+            <div style="font-size:32px; font-weight:700; color:{color};">
                 {value}
             </div>
         </div>
@@ -97,13 +96,11 @@ with col4:
     colored_metric("📈 Return %", dashboard.iloc[0, 3])
 
 # --------------------------------------------------
-# CONFIG-DRIVEN TABS
+# CONFIG-DRIVEN TABS (FUTURE PROOF)
 # --------------------------------------------------
 st.divider()
 
-config = clean_df(load_sheet("Config"))
-config = config.astype(str)
-
+config = clean_df(load_sheet("Config")).astype(str)
 visible = config[config["Show"].str.upper() == "YES"]
 
 tab_titles = visible["Display Name"].tolist()
@@ -113,8 +110,7 @@ tabs = st.tabs(tab_titles)
 
 for tab, sheet_name in zip(tabs, sheet_names):
     with tab:
-        df = clean_df(load_sheet(sheet_name))
-        df = df.astype(str)
+        df = clean_df(load_sheet(sheet_name)).astype(str)
 
         styled_df = df.style.apply(highlight_profit_loss, axis=1)
 
@@ -128,4 +124,4 @@ for tab, sheet_name in zip(tabs, sheet_names):
 # FOOTER
 # --------------------------------------------------
 st.divider()
-st.caption("📊 Data source: Google Sheets | Auto-updated | Text-only replication")
+st.caption("📊 Data source: Google Sheets | Auto-updated | Text-only dashboard")
