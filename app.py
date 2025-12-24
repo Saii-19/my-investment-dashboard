@@ -47,10 +47,10 @@ def highlight_profit_loss(row):
     pnl = str(row.get("P&L", "")).strip()
     pct = str(row.get("Percentage", "")).strip()
 
-    if pnl.startswith("+") or pct.startswith("+"):
-        return ["background-color: #1d3a2a"] * len(row)
-    if pnl.startswith("-") or pct.startswith("-"):
-        return ["background-color: #3a1d1d"] * len(row)
+    if not pnl.startswith("-") and pnl != "":
+        return ["background-color: #1d3a2a"] * len(row)  # green
+    if pnl.startswith("-"):
+        return ["background-color: #3a1d1d"] * len(row)  # red
 
     return [""] * len(row)
 
@@ -66,8 +66,8 @@ current_value = dashboard.iloc[0, 1].strip()
 pnl_value = dashboard.iloc[0, 2].strip()
 return_pct = dashboard.iloc[0, 3].strip()
 
-# Determine overall direction using P&L
-is_profit = pnl_value.startswith("+")
+# ✅ CORRECT PROFIT DETECTION
+is_profit = not pnl_value.startswith("-")
 
 def dashboard_metric(label, value, color):
     st.markdown(
@@ -85,7 +85,7 @@ def dashboard_metric(label, value, color):
 c1, c2, c3, c4 = st.columns(4)
 
 with c1:
-    # Invested is always neutral
+    # Invested always neutral
     dashboard_metric("💰 Total Invested", total_invested, "white")
 
 with c2:
@@ -97,19 +97,17 @@ with c2:
     )
 
 with c3:
-    # P&L color by sign
     dashboard_metric(
         "📊 P&L",
         pnl_value,
-        "limegreen" if pnl_value.startswith("+") else "tomato"
+        "limegreen" if not pnl_value.startswith("-") else "tomato"
     )
 
 with c4:
-    # Return % color by sign
     dashboard_metric(
         "📈 Return %",
         return_pct,
-        "limegreen" if return_pct.startswith("+") else "tomato"
+        "limegreen" if not return_pct.startswith("-") else "tomato"
     )
 
 # --------------------------------------------------
@@ -123,7 +121,7 @@ visible = config[config["Show"].str.upper() == "YES"]
 invested_sheets = visible[visible["Sheet Name"].str.contains("Invested", case=False)]
 sold_sheets = visible[visible["Sheet Name"].str.contains("Sold", case=False)]
 
-main_tabs = st.tabs(["💰 Invested", "⛔ Sold"])
+main_tabs = st.tabs(["📥 Invested", "📤 Sold"])
 
 # ---------------- INVESTED ----------------
 with main_tabs[0]:
