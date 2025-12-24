@@ -90,19 +90,28 @@ def section_card(label, value, color, delta=None):
     )
 
 def render_section_dashboard(inv, cur, pnl, pct):
-    profit = pnl >= 0
-    color = "limegreen" if profit else "tomato"
+    # Neutral state (no data)
+    if inv == 0 and cur == 0:
+        color = "white"
+        delta = None
+    else:
+        color = "limegreen" if pnl >= 0 else "tomato"
+        delta = pnl
 
     c1, c2, c3, c4 = st.columns(4)
 
     with c1:
         section_card("💰 Total Invested", f"₹{inv:,.2f}", "white")
+
     with c2:
-        section_card("📈 Current Value", f"₹{cur:,.2f}", color, pnl)
+        section_card("📈 Current Value", f"₹{cur:,.2f}", color, delta)
+
     with c3:
         section_card("📊 P&L", f"₹{pnl:,.2f}", color)
+
     with c4:
         section_card("📈 Return %", f"{pct:.2f}%", color)
+
 
 # --------------------------------------------------
 # ROW COLORING
